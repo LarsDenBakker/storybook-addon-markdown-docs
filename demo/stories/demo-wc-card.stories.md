@@ -12,7 +12,7 @@ import {
   html,
 } from '@open-wc/demoing-storybook';
 
-import '../../demo-wc-card.js';
+import '../demo-wc-card.js';
 
 export default {
   title: 'Demo Card/Docs',

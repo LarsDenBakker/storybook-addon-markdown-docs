@@ -1,7 +1,7 @@
 const { markdownToStories } = require('../../src/markdown-to-stories');
 
 module.exports = {
-  stories: ['./stories/*.stories.{js,md}'],
+  stories: ['../stories/*.stories.{js,md}'],
   esDevServer: {
     open: true,
     nodeResolve: true,
