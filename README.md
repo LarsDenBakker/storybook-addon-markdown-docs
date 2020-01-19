@@ -1,18 +1,14 @@
-# Storybook addon markdown docs
+# Storybook Addon: Markdown Docs
 
-Write storybook docs using regular markdown.
+Write storybook docs using regular markdown and HTML.
 
-> Warning: this project is still an experiment, not all features are supported. Join the discussion in the issues.
+> Warning: this project is still experimental, not all features are supported. Join the discussion in the [issues](https://github.com/LarsDenBakker/storybook-addon-markdown-docs/issues).
 
-## Writing docs
+## Writing Docs
 
 You can write documentation using regular markdown, this is converted to HTML and rendered in a storybook docs tab.
 
-## Writing code
-
-To write code inside your docs you can write module scripts. All module scripts on the page are combined into one module, imports and variables between scripts are shared.
-
-You will always need to provide at least a default export with the title of your docs page, and you will need to import any dependencies used in your stories.
+Write a module script with a default export containing storybook metadata, and optionally importing any dependencies to be used in your stories.
 
 ```md
 <script type="module">
@@ -22,19 +18,7 @@ You will always need to provide at least a default export with the title of your
 </script>
 ```
 
-Module scripts can give problems with some markdown renderers or code formatters like prettier. They can be aliased using a fenced codeblock with a type that ends with `script`. For example `js script` or `ts script`:
-
-```md
-<docs-story>
-
-\`\`\`js script
-export const MyStory = () => html`<my-element></my-element>`;
-\`\`\`
-
-</docs-story>
-```
-
-## Writing inline stories
+## Writing Inline Stories
 
 Stories can be written inline using `docs-story` elements.
 
@@ -58,23 +42,38 @@ Or an embedded script:
 </docs-story>
 ```
 
-Or using a `js script` codeblock:
+## Writing Code
 
-```md
+To write code inside your docs you can write module scripts. All module scripts on the page are combined into one module, imports and variables between scripts are shared.
+
+Module scripts can give problems with some markdown renderers or code formatters like prettier. They can be aliased using a fenced codeblock with a type that ends with `script`. For example `js script` or `ts script`:
+
+`````md
 <docs-story>
 
-\`\`\`js script
+```js script
 export const MyStory = () => html`<my-element></my-element>`;
-\`\`\`
-
-</docs-story>
 ```
 
-## Ussage
+</docs-story>
+`````
+Or using a `js script` codeblock:
 
-### open-wc
+`````md
+<docs-story>
 
-To use this addon with `@open-wc/demoing-storybook`, add this `main.js`:
+```js script
+export const MyStory = () => html`<my-element></my-element>`;
+```
+
+</docs-story>
+`````
+
+## Usage
+
+### With `@open-wc/demoing-storybook`
+
+To use this addon with `@open-wc/demoing-storybook`, add this `main.js` to your `.storybook` directory:
 
 ```js
 const { markdownToStories } = require('storybook-addon-markdown-docs');
@@ -96,6 +95,6 @@ module.exports = {
 };
 ```
 
-### Regular storybook
+### Regular Storybook
 
 To use this addon with regular storybook, you need to add a webpack transformation step. We don't have any defaults for this yet.
