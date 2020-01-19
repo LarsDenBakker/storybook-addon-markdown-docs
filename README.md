@@ -18,6 +18,40 @@ Write a module script with a default export containing storybook metadata, and o
 </script>
 ```
 
+## Writing Code
+
+To write code inside your docs you can write module scripts. All module scripts on the page are combined into one module, imports and variables between scripts are shared.
+
+Module scripts can give problems with some markdown renderers or code formatters like prettier. They can be aliased using a fenced codeblock with a type that ends with `script`. For example `js script` or `ts script`:
+
+````md
+<docs-story>
+
+```js script
+export const MyStory = () =>
+  html`
+    <my-element></my-element>
+  `;
+```
+
+</docs-story>
+````
+
+Or using a `js script` codeblock:
+
+````md
+<docs-story>
+
+```js script
+export const MyStory = () =>
+  html`
+    <my-element></my-element>
+  `;
+```
+
+</docs-story>
+````
+
 ## Writing Inline Stories
 
 Stories can be written inline using `docs-story` elements.
@@ -30,7 +64,7 @@ The embedded story can be plain HTML:
 </docs-story>
 ```
 
-Or an embedded script:
+Or an embedded script or js code block:
 
 ```html
 <docs-story>
@@ -42,32 +76,17 @@ Or an embedded script:
 </docs-story>
 ```
 
-## Writing Code
-
-To write code inside your docs you can write module scripts. All module scripts on the page are combined into one module, imports and variables between scripts are shared.
-
-Module scripts can give problems with some markdown renderers or code formatters like prettier. They can be aliased using a fenced codeblock with a type that ends with `script`. For example `js script` or `ts script`:
-
-`````md
+````md
 <docs-story>
 
 ```js script
-export const MyStory = () => html`<my-element></my-element>`;
+export const MyStory = () => html`
+  <my-element></my-element>
+`;
 ```
 
 </docs-story>
-`````
-Or using a `js script` codeblock:
-
-`````md
-<docs-story>
-
-```js script
-export const MyStory = () => html`<my-element></my-element>`;
-```
-
-</docs-story>
-`````
+````
 
 ## Usage
 
