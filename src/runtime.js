@@ -1,29 +1,8 @@
-import { DocsPage } from './elements/docs-page.js';
-import './elements/docs-story.js';
+import './elements/react-doc-blocks.js';
+import { createElement } from 'storybook-prebuilt/react';
+import { withTheme } from 'storybook-prebuilt/theming.js';
+import { MarkdownDocsPage } from './elements/docs-page.js';
 
-let docsI = 0;
-
-function nextElementName() {
-  const name = `docs-page-${docsI}`;
-  docsI += 1;
-  // check if element does not already exist
-  if (customElements.get(name)) {
-    return nextElementName();
-  }
-  return name;
-}
-
-export function createDocsPage(html, stories) {
-  const name = nextElementName();
-
-  customElements.define(
-    name,
-    class extends DocsPage {
-      connectedCallback() {
-        this.initialize(html, stories);
-      }
-    },
-  );
-
-  return name;
+export function createDocsPage(componentMeta, html, stories) {
+  return () => createElement(withTheme(MarkdownDocsPage), { html, componentMeta, stories });
 }

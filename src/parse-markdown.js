@@ -1,12 +1,20 @@
-/** @typedef {import('parse5').Document} DocumentAst */
-/** @typedef {import('./types').MarkdownResult} MarkdownResult */
-/** @typedef {import('./types').Story} Story */
-
+/* eslint-disable no-param-reassign */
 const marked = require('marked');
+const { types: t } = require('@babel/core');
+const { parse: parseJs } = require('@babel/parser');
 const { highlightAuto } = require('highlight.js');
-const { parse, serialize } = require('parse5');
-const { query, queryAll, predicates, getAttribute, getTextContent, remove } = require('dom5');
+const { parse: parseHtml, serialize } = require('parse5');
+const {
+  query,
+  queryAll,
+  predicates,
+  getAttribute,
+  setAttribute,
+  getTextContent,
+  remove,
+} = require('dom5');
 const { promisify } = require('util');
+const startCase = require('lodash/startCase');
 
 const renderer = new marked.Renderer();
 const originalCodeHandler = renderer.code;
@@ -33,7 +41,6 @@ const { AND, hasTagName, hasAttrValue } = predicates;
 
 /**
  * @param {DocumentAst} documentAst
- * @returns {string[]}
  */
 function findModuleScripts(documentAst) {
   const moduleScripts = queryAll(
@@ -46,46 +53,109 @@ function findModuleScripts(documentAst) {
     remove(moduleScript);
   }
 
-  return codeBlocks;
+  return parseJs(codeBlocks.join('\n'), { sourceType: 'module' });
+}
+
+function parseStory(title, code) {
+  const ast = parseJs(code, { sourceType: 'module' });
+  const { body } = ast.program;
+  const namedExports = /** @type {ExportNamedDeclaration[]} */ (body.filter(n =>
+    t.isExportNamedDeclaration(n),
+  ));
+
+  if (namedExports.length === 0) {
+    throw new Error(`Story ${title ? `${title} ` : ''}should contain a named export.`);
+  }
+
+  if (namedExports.length > 1) {
+    throw new Error(
+      `Story ${title ? `${title} ` : ''}should not contain more than one named export`,
+    );
+  }
+  const [namedExport] = namedExports;
+
+  if (t.isVariableDeclaration(namedExport.declaration)) {
+    const { declarations } = namedExport.declaration;
+    if (declarations.length === 0 || declarations.length > 1) {
+      throw new Error(`Story ${title} should have one named export.`);
+    }
+    return { key: declarations[0].id.name, ast };
+  }
+
+  const exportSpecifiers = namedExport.specifiers.filter(s => t.isExportSpecifier(s));
+  if (exportSpecifiers.length === 0) {
+    throw new Error(`Story ${title ? `${title} ` : ''}should contain a named export.`);
+  }
+
+  if (exportSpecifiers.length > 1) {
+    throw new Error(
+      `Story ${title ? `${title} ` : ''}should not contain more than one named export`,
+    );
+  }
+
+  return { key: exportSpecifiers[0].exported.name, ast };
 }
 
 /**
  * @param {DocumentAst} documentAst
- * @returns {string[]}
  */
 function findStories(documentAst) {
-  const storyNodes = queryAll(documentAst, hasTagName('docs-story'));
+  const storyNodes = queryAll(documentAst, hasTagName('sb-story'));
   const stories = [];
 
   for (const storyNode of storyNodes) {
+    let name = getAttribute(storyNode, 'name');
     const scriptNode = query(storyNode, AND(hasTagName('script'), hasAttrValue('type', 'module')));
+    let codeString;
     if (scriptNode) {
-      stories.push(getTextContent(scriptNode));
-      remove(scriptNode);
+      codeString = getTextContent(scriptNode);
     } else {
-      const name = getAttribute(storyNode, 'name');
       if (!name) {
-        throw new Error('A <docs-story> element without a codeblock must have a name attribute.');
+        throw new Error('A <sb-story> element without a codeblock must have a name attribute.');
       }
 
-      const sanitizedName = name.replace(' ', '_');
       const htmlStory = serialize(storyNode);
-      stories.push(`export const ${sanitizedName} = () => ${JSON.stringify(htmlStory)}`);
+      // TODO: This replacement can generate incorrect coe;
+      const key = name.replace(' ', '_');
+      codeString = `
+      export const ${key} = () => Object.assign(document.createElement('div'), {
+        innerHTML: ${JSON.stringify(htmlStory)}
+      });
+      ${key}.story = { name: ${JSON.stringify(name)} };
+      `;
     }
+    // clear story text content
+    storyNode.childNodes = [];
+
+    const { key, ast } = parseStory(name, codeString);
+    if (!name) {
+      name = key;
+      setAttribute(storyNode, 'name', key);
+    }
+    stories.push({ key, name, ast, codeString });
   }
   return stories;
 }
 
+function renameSbElementsToJsx(documentAst) {
+  queryAll(documentAst, () => true).forEach(node => {
+    if (node.tagName.startsWith('sb-')) {
+      const jsxName = startCase(node.tagName.replace('sb-', '')).replace(' ', '');
+      node.nodeName = jsxName;
+      node.tagName = jsxName;
+    }
+  });
+}
+
 /**
  * @param {string} markdown
- * @returns {MarkdownResult}
  */
 async function parseMarkdown(markdown) {
   const html = await transform(markdown);
-
-  const documentAst = parse(html);
+  const documentAst = parseHtml(html);
   const stories = findStories(documentAst);
   const codeBlocks = findModuleScripts(documentAst);
+  renameSbElementsToJsx(documentAst);
 
   return { html: serialize(query(documentAst, hasTagName('body'))), stories, codeBlocks };
 }
