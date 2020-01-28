@@ -7,6 +7,8 @@
     "test": "ava --verbose",
     "test:watch": "ava --watch --verbose",
     "build:styles": "node styles/create-global-styles.js",
+    "to-html": "es-dev-server --watch --node-resolve --open ./demo/toHtml",
+    "to-mdx": "es-dev-server --watch --node-resolve --open ./demo/toHtml",
     "storybook": "start-storybook -c demo/.storybook"
   },
   "author": "",
@@ -15,6 +17,7 @@
     "@babel/core": "^7.8.3",
     "@babel/generator": "^7.8.3",
     "@babel/parser": "^7.8.3",
+    "commonmark": "^0.29.1",
     "dom5": "^3.0.1",
     "highlight.js": "^9.17.1",
     "marked": "^0.8.0",

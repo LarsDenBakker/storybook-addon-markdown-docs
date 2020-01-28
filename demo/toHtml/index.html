@@ -1,0 +1,54 @@
+
+  <script type="module">
+    import { html, render } from '/node_modules/lit-html/lit-html.js';
+import { DemoWcCard } from '/demo/src/DemoWcCard.js';
+
+import '/demo/demo-wc-card.js';
+
+export default {
+  title: 'Demo Card/Docs',
+  component: 'demo-wc-card',
+  options: { selectedPanel: 'storybookjs/knobs/panel' },
+};
+export const showBack = () =>
+  html`
+    <demo-wc-card back-side>Hello World</demo-wc-card>
+  `;
+showBack.story = {
+  name: 'Showing it back',
+  decorators: []
+}
+
+
+    const templateStories = [html`
+  <demo-wc-card .header=${'foo'}>Hello World</demo-wc-card>
+`
+];
+    templateStories.forEach((template, i) => {
+      render(template, document.getElementById(`story-${i}`));
+    });
+    const fnStories = [showBack];
+    fnStories.forEach((templateFn, i) => {
+      render(templateFn(), document.getElementById(`fn-story-${i}`));
+    });
+  </script>
+  <h1>Demo Web Component Card</h1>
+<p>A component meant to display small information with additional data on the back.</p>
+<h3>Installation</h3>
+<pre><code class="language-bash">yarn add @foo/demo-wc-card
+</code></pre>
+<pre><code class="language-js">import '@foo/demo-wc-card/demo-wc-card.js';
+</code></pre>
+<h2>An html story</h2>
+<p>Just html, only supports title</p>
+<demo-wc-card back-side>Hello World</demo-wc-card>
+
+<h2>A template story</h2>
+<p>Purely providing the template for a story, only supports at title</p>
+<div id="story-0"></div>
+<h2>Story Function</h2>
+<p>A regular function with full power</p>
+<p>
+<div id="fn-story-0"></div>
+</p>
+
