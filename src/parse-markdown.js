@@ -21,7 +21,7 @@ const originalCodeHandler = renderer.code;
 
 // rewrite codeblocks with `js run` as module scripts
 renderer.code = function code(content, info, escaped) {
-  if (info.trim().endsWith('script')) {
+  if (info && info.trim().endsWith('script')) {
     return `<script type="module">${content}</script>`;
   }
 

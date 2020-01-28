@@ -121,7 +121,7 @@ export default { title: 'My docs' };
   t.snapshot(result);
 });
 
-test('can use preview code blocks', async t => {
+test.only('can use preview code blocks', async t => {
   const result = await markdownToMdx(
     '/foo.js',
     `
@@ -132,6 +132,16 @@ export default { title: 'My docs' };
 <sb-preview>
   <sb-story name="StoryA">
     <my-element></my-element>
+  </sb-story>
+</sb-preview>
+
+<sb-preview>
+  <sb-story>
+
+\`\`\`js script
+export const StoryA = () => html\`<p>Story A</p>\`;
+\`\`\`
+
   </sb-story>
 </sb-preview>
 `,
