@@ -1,6 +1,12 @@
+/** @typedef {import('parse5').Document} DocumentAst */
+/** @typedef {import('@babel/types').Statement} Statement */
+/** @typedef {import('@babel/types').ExportNamedDeclaration} ExportNamedDeclaration */
+/** @typedef {import('./types').MarkdownResult} MarkdownResult */
+/** @typedef {import('./types').Code} Code */
+/** @typedef {import('./types').Story} Story */
+
 /* eslint-disable no-param-reassign */
 const marked = require('marked');
-const { types: t } = require('@babel/core');
 const { parse: parseJs } = require('@babel/parser');
 const { highlightAuto } = require('highlight.js');
 const { parse: parseHtml, serialize } = require('parse5');
@@ -15,11 +21,13 @@ const {
 } = require('dom5');
 const { promisify } = require('util');
 const startCase = require('lodash/startCase');
+const { createStory } = require('./create-story');
 
 const renderer = new marked.Renderer();
 const originalCodeHandler = renderer.code;
 
 // rewrite codeblocks with `js run` as module scripts
+// @ts-ignore
 renderer.code = function code(content, info, escaped) {
   if (info && info.trim().endsWith('script')) {
     return `<script type="module">${content}</script>`;
@@ -41,8 +49,9 @@ const { AND, hasTagName, hasAttrValue } = predicates;
 
 /**
  * @param {DocumentAst} documentAst
+ * @returns {Code}
  */
-function findModuleScripts(documentAst) {
+function findCode(documentAst) {
   const moduleScripts = queryAll(
     documentAst,
     AND(hasTagName('script'), hasAttrValue('type', 'module')),
@@ -53,58 +62,19 @@ function findModuleScripts(documentAst) {
     remove(moduleScript);
   }
 
-  return parseJs(codeBlocks.join('\n'), { sourceType: 'module' });
-}
-
-function parseStory(title, code) {
-  const ast = parseJs(code, { sourceType: 'module' });
-  const { body } = ast.program;
-  const namedExports = /** @type {ExportNamedDeclaration[]} */ (body.filter(n =>
-    t.isExportNamedDeclaration(n),
-  ));
-
-  if (namedExports.length === 0) {
-    throw new Error(`Story ${title ? `${title} ` : ''}should contain a named export.`);
-  }
-
-  if (namedExports.length > 1) {
-    throw new Error(
-      `Story ${title ? `${title} ` : ''}should not contain more than one named export`,
-    );
-  }
-  const [namedExport] = namedExports;
-
-  if (t.isVariableDeclaration(namedExport.declaration)) {
-    const { declarations } = namedExport.declaration;
-    if (declarations.length === 0 || declarations.length > 1) {
-      throw new Error(`Story ${title} should have one named export.`);
-    }
-    return { key: declarations[0].id.name, ast };
-  }
-
-  const exportSpecifiers = namedExport.specifiers.filter(s => t.isExportSpecifier(s));
-  if (exportSpecifiers.length === 0) {
-    throw new Error(`Story ${title ? `${title} ` : ''}should contain a named export.`);
-  }
-
-  if (exportSpecifiers.length > 1) {
-    throw new Error(
-      `Story ${title ? `${title} ` : ''}should not contain more than one named export`,
-    );
-  }
-
-  return { key: exportSpecifiers[0].exported.name, ast };
+  return parseJs(codeBlocks.join('\n'), { sourceType: 'module' }).program.body;
 }
 
 /**
  * @param {DocumentAst} documentAst
+ * @returns {Story[]}
  */
 function findStories(documentAst) {
   const storyNodes = queryAll(documentAst, hasTagName('sb-story'));
   const stories = [];
 
   for (const storyNode of storyNodes) {
-    let name = getAttribute(storyNode, 'name');
+    let name = getAttribute(storyNode, 'name') || undefined;
     const scriptNode = query(storyNode, AND(hasTagName('script'), hasAttrValue('type', 'module')));
     let codeString;
     if (scriptNode) {
@@ -127,16 +97,19 @@ function findStories(documentAst) {
     // clear story text content
     storyNode.childNodes = [];
 
-    const { key, ast } = parseStory(name, codeString);
+    const { key, code } = createStory(name, codeString);
     if (!name) {
       name = key;
       setAttribute(storyNode, 'name', key);
     }
-    stories.push({ key, name, ast, codeString });
+    stories.push({ key, name, code, codeString });
   }
   return stories;
 }
 
+/**
+ * @param {DocumentAst} documentAst
+ */
 function renameSbElementsToJsx(documentAst) {
   queryAll(documentAst, () => true).forEach(node => {
     if (node.tagName.startsWith('sb-')) {
@@ -149,15 +122,17 @@ function renameSbElementsToJsx(documentAst) {
 
 /**
  * @param {string} markdown
+ * @returns {Promise<MarkdownResult>}
  */
 async function parseMarkdown(markdown) {
   const html = await transform(markdown);
   const documentAst = parseHtml(html);
   const stories = findStories(documentAst);
-  const codeBlocks = findModuleScripts(documentAst);
+  const code = findCode(documentAst);
   renameSbElementsToJsx(documentAst);
+  const body = query(documentAst, hasTagName('body'));
 
-  return { html: serialize(query(documentAst, hasTagName('body'))), stories, codeBlocks };
+  return { html: serialize(body), stories, code };
 }
 
 module.exports = { parseMarkdown };

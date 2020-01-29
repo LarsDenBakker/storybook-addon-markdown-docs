@@ -1,41 +1,66 @@
-/** @typedef {import('@types/babel__core').types.ExportNamedDeclaration} ExportNamedDeclaration */
-/** @typedef {import('@types/babel__core').types.File} File */
-/** @typedef {import('@types/babel__core').types.Program} Program */
-/** @typedef {import('@types/babel__core').Visitor} Visitor */
+/** @typedef {import('@babel/types').ExportNamedDeclaration} ExportNamedDeclaration */
+/** @typedef {import('@babel/types').File} File */
+/** @typedef {import('@babel/types').Program} Program */
+/** @typedef {import('@babel/types').Node} Node */
+/** @typedef {import('@babel/core').Visitor} Visitor */
+/** @typedef {import('./types').Story} Story */
+/** @typedef {import('./types').Code} Code */
+/** @typedef {import('./types').MarkdownToMdxVisitor} MarkdownToMdxVisitor */
 
-const { types: t } = require('@babel/core');
+const {
+  isExportDefaultDeclaration,
+  isVariableDeclaration,
+  isVariableDeclarator,
+  isObjectExpression,
+  isExpression,
+  isIdentifier,
+  variableDeclaration,
+  variableDeclarator,
+  spreadElement,
+  identifier,
+} = require('@babel/types');
 
 /**
  * @param {Program} program
- * @param {File} codeBlocks
+ * @param {Code} code
  */
-function injectCodeBlocks(program, codeBlocks) {
-  const { body } = codeBlocks.program;
+function injectCode(program, code) {
   // ensure there is a default export
-  const [defaultExport] = body.filter(n => t.isExportDefaultDeclaration(n));
-  if (!defaultExport) {
+  const [defaultExport] = code.filter(n => isExportDefaultDeclaration(n));
+  if (!defaultExport || !isExportDefaultDeclaration(defaultExport)) {
     throw new Error('Markdown must have a default export');
+  }
+
+  if (!isExpression(defaultExport.declaration)) {
+    // TODO: Can we handle non-expressions?
+    throw new Error('Default export should be an expression');
   }
 
   // replace the user's default export with a variable, so that we can add it to the storybook
   // default export later
-  const defaultExportReplacement = t.variableDeclaration('const', [
-    t.variableDeclarator(t.identifier('__userDefaultExport__'), defaultExport.declaration),
+  const defaultExportReplacement = variableDeclaration('const', [
+    variableDeclarator(identifier('__userDefaultExport__'), defaultExport.declaration),
   ]);
-  body.splice(body.indexOf(defaultExport), 1, defaultExportReplacement);
+  code.splice(code.indexOf(defaultExport), 1, defaultExportReplacement);
 
   // add the user's code on top in the correct order
-  program.node.body.unshift(...body);
+  program.body.unshift(...code);
 
   // look for storybook addon docs' default export object
-  const componentMeta = program.node.body.find(
+  const componentMeta = program.body.find(
     node =>
-      t.isVariableDeclaration(node) &&
-      t.isVariableDeclarator(node.declarations[0]) &&
+      isVariableDeclaration(node) &&
+      isVariableDeclarator(node.declarations[0]) &&
+      isIdentifier(node.declarations[0].id) &&
       node.declarations[0].id.name === 'componentMeta',
   );
 
-  if (!componentMeta) {
+  if (
+    !componentMeta ||
+    !isVariableDeclaration(componentMeta) ||
+    !isVariableDeclarator(componentMeta.declarations[0]) ||
+    !isObjectExpression(componentMeta.declarations[0].init)
+  ) {
     throw new Error(
       'Something went wrong compiling to storybook docs, could not find component meta.',
     );
@@ -43,27 +68,29 @@ function injectCodeBlocks(program, codeBlocks) {
 
   // add user's default export to storybook addon docs' default export
   componentMeta.declarations[0].init.properties.unshift(
-    t.spreadElement(t.identifier('__userDefaultExport__')),
+    spreadElement(identifier('__userDefaultExport__')),
   );
 }
 
+/**
+ * @param {Program} program
+ * @param {Story[]} stories
+ */
+function injectStories(program, stories) {
+  const storyCode = stories.map(s => s.code).reverse();
+  for (const nodes of storyCode) {
+    program.body.unshift(...nodes);
+  }
+}
+
+/** @returns {{ visitor: MarkdownToMdxVisitor }} */
 function babelPluginMarkdownToMdx() {
   return {
     visitor: {
-      /**
-       * @param {Program} program
-       * @param {*} state
-       */
-      Program(program, state) {
-        const { codeBlocks, stories } = state.opts;
-        for (const story of stories.map(s => s.ast.program.body).reverse()) {
-          if (Array.isArray(story)) {
-            program.node.body.unshift(...story);
-          } else {
-            program.node.body.unshift(story);
-          }
-        }
-        injectCodeBlocks(program, codeBlocks);
+      Program(path, state) {
+        const { code, stories } = state.opts;
+        injectStories(path.node, stories);
+        injectCode(path.node, code);
       },
     },
   };

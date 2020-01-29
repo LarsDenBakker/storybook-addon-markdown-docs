@@ -1,3 +1,4 @@
+// @ts-nocheck
 const mdxToJsx = require('@mdx-js/mdx/mdx-hast-to-jsx');
 const parser = require('@babel/parser');
 const generate = require('@babel/generator').default;

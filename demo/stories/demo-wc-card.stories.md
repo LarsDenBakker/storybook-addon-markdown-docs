@@ -5,7 +5,11 @@ import '../demo-wc-card.js';
 export default { title: 'My docs' };
 ```
 
-Before
+# Heading 1
+
+Foo
+
+## Heading 2
 
 <sb-story name="HTML Story">
   <demo-wc-card>HTML Story</demo-wc-card>
