@@ -17,7 +17,7 @@ async function compileMdx(filePath, markdownResult) {
     storyNameToKey[name] = key;
   }
 
-  const compilers = [createCompiler({}, storyNameToKey)];
+  const compilers = [createCompiler(storyNameToKey)];
   const jsx = `
 
     /** Start of generated storybook docs */

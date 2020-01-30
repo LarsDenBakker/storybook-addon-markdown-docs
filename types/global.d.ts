@@ -3,5 +3,7 @@ declare module '@mdx-js/mdx' {
 }
 
 declare module '@mdx-js/mdx/mdx-hast-to-jsx' {
-
+  export = {
+    toJSX(a: any, b: any, c: any): any;
+  }
 }
