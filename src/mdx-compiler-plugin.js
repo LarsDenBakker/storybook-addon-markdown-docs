@@ -2,12 +2,6 @@
 
 const mdxToJsx = require('@mdx-js/mdx/mdx-hast-to-jsx');
 
-// insert `mdxStoryNameToKey` and `mdxComponentMeta` into the context so that we
-// can reconstruct the Story ID dynamically from the `name` at render time
-const wrapperJs = `
-
-`.trim();
-
 /**
  * @param {*} node
  * @param {*} options
