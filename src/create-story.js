@@ -8,6 +8,12 @@ const {
   isExportNamedDeclaration,
   isVariableDeclaration,
   isExportSpecifier,
+  expressionStatement,
+  assignmentExpression,
+  memberExpression,
+  logicalExpression,
+  identifier,
+  stringLiteral,
 } = require('@babel/types');
 
 /**
@@ -30,6 +36,7 @@ function createStory(name, codeString) {
     throw new Error(`Story ${name ? `${name} ` : ''}should not contain more than one named export`);
   }
   const [namedExport] = namedExports;
+  let key;
 
   if (isVariableDeclaration(namedExport.declaration)) {
     const { declarations } = namedExport.declaration;
@@ -40,20 +47,35 @@ function createStory(name, codeString) {
       throw new Error('TODO: correct error message');
     }
 
-    const key = declarations[0].id.name;
-    return { key, name: key || name, code, codeString };
+    key = declarations[0].id.name;
+  } else {
+    const exportSpecifiers = namedExport.specifiers.filter(s => isExportSpecifier(s));
+    if (exportSpecifiers.length === 0) {
+      throw new Error(`Story ${name ? `${name} ` : ''}should contain a named export.`);
+    }
+
+    if (exportSpecifiers.length > 1) {
+      throw new Error(
+        `Story ${name ? `${name} ` : ''}should not contain more than one named export`,
+      );
+    }
+    key = exportSpecifiers[0].exported.name;
   }
 
-  const exportSpecifiers = namedExport.specifiers.filter(s => isExportSpecifier(s));
-  if (exportSpecifiers.length === 0) {
-    throw new Error(`Story ${name ? `${name} ` : ''}should contain a named export.`);
-  }
+  // inject story name (if it was a custom name) and source code string
+  // TODO: make code string only the function, or the return value of the function and not the
+  // full codeblock?
+  const storyParameters = parseJs(
+    `
+    ${key}.story = ${key}.story || {};
+    ${name ? `${key}.story.name = ${JSON.stringify(name)};` : ''}
+    ${key}.story.parameters = ${key}.story.parameters || {};
+    ${key}.story.parameters.mdxSource = ${JSON.stringify(codeString.trim())};`,
+    { sourceType: 'module' },
+  ).program.body;
 
-  if (exportSpecifiers.length > 1) {
-    throw new Error(`Story ${name ? `${name} ` : ''}should not contain more than one named export`);
-  }
+  code.push(...storyParameters);
 
-  const key = exportSpecifiers[0].exported.name;
   return { key, name: key || name, code, codeString };
 }
 

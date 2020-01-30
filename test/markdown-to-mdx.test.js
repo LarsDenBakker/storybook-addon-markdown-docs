@@ -1,7 +1,7 @@
 import test from 'ava';
 import { markdownToMdx } from '../src/markdown-to-mdx.js';
 
-test.only('combines user default export with storybook default export', async t => {
+test('combines user default export with storybook default export', async t => {
   const result = await markdownToMdx(
     '/foo.js',
     `
